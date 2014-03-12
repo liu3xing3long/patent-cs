@@ -27,39 +27,7 @@ namespace patentCS
         public Form1()
         {
             InitializeComponent();
-            worker.WorkerReportsProgress = true;
-
-            worker.WorkerSupportsCancellation = true;
-
-            //正式做事情的地方
-            worker.DoWork += new DoWorkEventHandler(DoWork);
-
-            //任务完称时要做的，比如提示等等
-            worker.ProgressChanged += new ProgressChangedEventHandler(ProgessChanged);
-
-            //任务进行时，报告进度
-            worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(CompleteWork);
         }
-        //调用 RunWorkerAsync 时发生
-        public void DoWork(object sender, DoWorkEventArgs e)
-        {
-            //e.Result = GrabWebPages(worker, e);
-            //获取异步操作结果的值，当ComputeFibonacci(worker, e)返回时，异步过程结束
-        }
-        //调用 ReportProgress 时发生
-        public void ProgessChanged(object sender, ProgressChangedEventArgs e)
-        {
-            this.progressBar1.Value = e.ProgressPercentage;
-            //将异步任务进度的百分比赋给进度条
-        }
-
-        //当后台操作已完成、被取消或引发异常时发生
-        public void CompleteWork(object sender, RunWorkerCompletedEventArgs e)
-        {
-            MessageBox.Show("完成！");
-        }
-
-
         /// <summary>
         /// 
         /// </summary>
@@ -276,6 +244,7 @@ namespace patentCS
                 }
                 refresh_onePage(sREQ, sComName, ref perPageData, ref totalData, 1);
                 nStart += perPageData;
+                Console.WriteLine("Separate Percent "+ (float)(nStart+1)/nTotal);
             }
         }
         private void refresh_onePage(string sHTML, string sCompanyName, ref int perpageData, ref int totalData, int mode)
@@ -316,27 +285,29 @@ namespace patentCS
             HtmlNode nodePerpageData = node.SelectSingleNode("//input[@id=\"resultPagination.limit\"]");
             perpageData = int.Parse(nodePerpageData.Attributes["value"].Value);
 
-            HtmlNodeCollection h3c = node.SelectNodes("//h3[@class=\"sqh\"]");
-            if (h3c.Count > 0)
+            HtmlNodeCollection hdiv = node.SelectNodes("//div[@class=\"s_c_conter\"]");
+            if (hdiv.Count > 0)
             {
-                for (int i = 0; i < h3c.Count; i++)
+                for (int i = 0; i < hdiv.Count; i++)
                 {
-                    HtmlNode h3cNode = h3c[i];
-                    string h3cnodeText = h3cNode.InnerText;
-                    string strResult = replaceBlank(h3cnodeText);
-                    bool bFound1 = strResult.IndexOf(shiyongxinxing) > 0 ? true : false;
-                    bool bFound2 = strResult.IndexOf(faming) > 0 ? true : false;
-                    bool bFound3 = strResult.IndexOf(waiguansheji) > 0 ? true : false;
-                    swwaiguansheji.WriteLine("");
-                    if (bFound1)
-                        swshiyongxinxing.WriteLine(strResult);
-                    else if (bFound2)
-                        swfaming.WriteLine(strResult);
-                    else if (bFound3)
-                        swwaiguansheji.WriteLine(strResult);
-                    else
-                        Console.WriteLine("=====================ERROR, Not Invalid Index=====================");
+                    bool bFound1 = false;
+                    bool bFound2 = false;
+                    bool bFound3 = false;
+                    string strResult = "";
 
+                    HtmlNode h3cNode = node.SelectSingleNode("//h3[@id=\"resultAn_" + i + "\"]");
+                    if (h3cNode==null)
+                    {
+                        bFound2 = true;
+                    }
+                    else
+                    {
+                        string h3cnodeText = h3cNode.InnerText;
+                        strResult = replaceBlank(h3cnodeText);
+                        bFound1 = strResult.IndexOf(shiyongxinxing) > 0 ? true : false;
+                        bFound2 = strResult.IndexOf(faming) > 0 ? true : false;
+                        bFound3 = strResult.IndexOf(waiguansheji) > 0 ? true : false;
+                    }
 
                     string sLookupPattern = "//div[@id=\"result_inner_left_div" + i.ToString() + "\"]";
                     HtmlNode subDiv = node.SelectSingleNode(sLookupPattern);
@@ -346,13 +317,21 @@ namespace patentCS
                         string tableNodeText = tableNode.InnerText;
                         strResult = replaceBlank(tableNodeText);
                         if (bFound1)
+                        {
                             swshiyongxinxing.WriteLine(strResult);
+                        }
                         else if (bFound2)
+                        {
                             swfaming.WriteLine(strResult);
+                        }
                         else if (bFound3)
+                        {
                             swwaiguansheji.WriteLine(strResult);
+                        }
                         else
-                            Console.WriteLine("=====================ERROR, Not Invalid Index=====================");
+                        { // default faming.
+                            swfaming.WriteLine(strResult);
+                        }
                     }
                 }
             }
@@ -360,46 +339,44 @@ namespace patentCS
             //清空缓冲区
             swshiyongxinxing.Flush();
             swshiyongxinxing.Close();
-            swshiyongxinxing.Close();
+            fsshiyongxinxing.Close();
             //清空缓冲区
             swfaming.Flush();
             swfaming.Close();
-            swfaming.Close();
+            fsfaming.Close();
             //清空缓冲区
             swwaiguansheji.Flush();
             swwaiguansheji.Close();
-            swwaiguansheji.Close();
+            fswaiguansheji.Close();
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            GrabWebPages(/*sender, e*/);
-//             worker.RunWorkerAsync();
-//             button1.Enabled = false;
+            GrabWebPages();
         }
-        private int GrabWebPages(/*object sender, DoWorkEventArgs e*/)
+        private int GrabWebPages()
         {
             int nCMPS = vCompanies.Count;
             for (int i = 0; i < nCMPS; i++ )
             {
                 string sComName = vCompanies[i];
+                Console.WriteLine("Processing " + sComName);
+
                 request_one_company(sComName);
                 string sTXT = txtSource.Text;
                 sTXT=sTXT.Replace(sComName+"\r\n", "");
                 txtSource.Text = sTXT;
                 txtResult.Text += sComName;
                 txtResult.Text += "\r\n";
+                Console.WriteLine(sComName + "Done!! Total Percent" + (float)(i+1)/nCMPS);
                 
-                string tmpSTR = string.Format("-------------- %f Done!! ---------------", Convert.ToDouble(i+1) / nCMPS);
-                Console.WriteLine(tmpSTR);
             }
-   
             return -1;
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            request_one_company("东华软件");
+            request_one_company("中科金财");
         }
     }
 }
