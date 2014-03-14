@@ -161,7 +161,8 @@ namespace patentCS
         private void Form1_Load(object sender, EventArgs e)
         {
            // load up bat
-            string fileBat = "专利.txt";
+            //string fileBat = "专利.txt";
+            string fileBat = "专利2.txt";
             try
             {
                 FileStream fsFileBat = new FileStream(fileBat, FileMode.Open);
